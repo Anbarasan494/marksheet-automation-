@@ -1,7 +1,6 @@
 flask
 flask-cors
-pytesseract
-pdf2image
-pillow
+gunicorn
+PyPDF2
 openpyxl
 gunicorn
