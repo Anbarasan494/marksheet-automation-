@@ -7,8 +7,9 @@ from PyPDF2 import PdfReader
 import openpyxl
 from openpyxl.utils import get_column_letter
 
-UPLOAD_DIR = "uploads"
-OUTPUT_DIR = "outputs"
+# Use temporary storage for Render
+UPLOAD_DIR = "/tmp/uploads"
+OUTPUT_DIR = "/tmp/outputs"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -26,31 +27,24 @@ def home():
     return send_from_directory("frontend", "index.html")
 
 
-# Normalize subject codes
 def normalize(code):
     code = str(code).upper()
     return re.sub(r"[^A-Z0-9]", "", code)
 
 
-# Detect subject columns from Excel template
 def detect_subjects(ws):
-
     subject_map = {}
 
     for col in range(1, ws.max_column):
-
         cell = ws.cell(row=SUBJECT_ROW, column=col).value
         if not cell:
             continue
 
         raw = str(cell).upper()
-
         parts = re.split(r"[\/,]", raw)
 
         for p in parts:
-
             code = normalize(p)
-
             if not code:
                 continue
 
@@ -60,21 +54,16 @@ def detect_subjects(ws):
                 "TOT": get_column_letter(col + 2),
             }
 
-    print("Subject Map:", subject_map)
     return subject_map
 
 
-# Find student row
 def find_row(ws, reg):
-
     reg = str(reg).strip()
 
     for r in range(START_ROW, ws.max_row + 1):
-
         val = ws[f"{REG_COL}{r}"].value
 
         if val:
-
             try:
                 val = str(int(float(val)))
             except:
@@ -86,7 +75,6 @@ def find_row(ws, reg):
     return None
 
 
-# Safe integer conversion
 def to_int(v):
     try:
         return int(str(v).strip())
@@ -96,7 +84,6 @@ def to_int(v):
 
 @app.route("/convert", methods=["POST"])
 def convert():
-
     pdf = request.files.get("pdf")
     template = request.files.get("template")
     sheet = request.form.get("sheet_name")
@@ -119,14 +106,12 @@ def convert():
         return "Sheet not found", 400
 
     ws = wb[sheet]
-
     SUBJECTS = detect_subjects(ws)
 
     reader = PdfReader(pdf_path)
 
     reg_re = re.compile(r"Register Number\s*:\s*(\d+)", re.I)
 
-    # Updated regex to allow --- and ***
     subject_re = re.compile(
         r"\b([A-Z0-9]{4,10})\b\s+"
         r"(\d+)\s+"
@@ -136,9 +121,7 @@ def convert():
     )
 
     for page in reader.pages:
-
         text = page.extract_text()
-
         if not text:
             continue
 
@@ -149,19 +132,14 @@ def convert():
             continue
 
         regno = reg_match.group(1)
-
         row = find_row(ws, regno)
 
         if not row:
-            print("Student not found:", regno)
             continue
 
         subjects = subject_re.findall(text)
 
-        print("Student:", regno, subjects)
-
         for code, ue, ia, tot in subjects:
-
             code = normalize(code)
 
             if code not in SUBJECTS:
@@ -169,13 +147,11 @@ def convert():
 
             ue = to_int(ue)
 
-            # IA handling
             if ia in ["---", "-"]:
                 ia = 0
             else:
                 ia = to_int(ia)
 
-            # TOTAL handling
             if tot in ["***", "RA", "RK", "---", "-"]:
                 tot = ue + ia
             else:
@@ -187,8 +163,6 @@ def convert():
             ws[f"{cols['INT']}{row}"] = ia
             ws[f"{cols['TOT']}{row}"] = tot
 
-            print("Filled:", regno, code, ue, ia, tot)
-
     wb.save(out_path)
 
     return send_file(
@@ -199,4 +173,4 @@ def convert():
 
 
 if __name__ == "__main__":
-    app.run("127.0.0.1", 5000)
+    app.run(host="0.0.0.0", port=10000)

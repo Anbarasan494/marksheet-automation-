@@ -289,25 +289,7 @@ html,body{
 .btn-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.2);pointer-events:none;animation:bRip .6s ease-out forwards;transform:scale(0);}
 @keyframes bRip{to{transform:scale(5);opacity:0;}}
 
-/* PROCESS STEPS */
-.proc-steps{display:none;flex-direction:column;gap:6px;margin-top:14px;}
-.p-step{
-  display:flex;align-items:center;gap:10px;
-  padding:9px 13px;border-radius:10px;
-  background:var(--surface2);border:1.5px solid transparent;
-  font-size:12px;color:var(--text3);font-weight:500;
-  opacity:.4;transform:translateX(-8px);
-  transition:all .4s cubic-bezier(.22,1,.36,1);
-}
-.p-step.active{opacity:1;transform:none;background:#eff6ff;border-color:rgba(37,99,235,.2);color:var(--text2);}
-.p-step.done{opacity:1;transform:none;background:#f0fdf4;border-color:#bbf7d0;color:#15803d;}
-.ps-dot{width:18px;height:18px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--border2);transition:all .3s;font-style:normal;}
-.p-step.active .ps-dot{background:var(--blue);color:#fff;animation:spin .8s linear infinite;}
-.p-step.done .ps-dot{background:var(--green);color:#fff;animation:none;}
-@keyframes spin{to{transform:rotate(360deg);}}
 
-.prog-wrap{display:none;margin-top:10px;height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden;}
-.prog-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--cyan));transition:width .5s ease;border-radius:4px;}
 
 .status-row{min-height:20px;text-align:center;margin-top:10px;}
 #status{font-size:12px;font-weight:500;color:var(--text2);display:inline-block;transition:all .3s;max-width:100%;word-break:break-word;line-height:1.5;}
@@ -495,13 +477,6 @@ html,body{
       </div>
     </button>
 
-    <div class="proc-steps" id="procSteps">
-      <div class="p-step" id="ps1"><div class="ps-dot">↺</div><span>Reading PDF content…</span></div>
-      <div class="p-step" id="ps2"><div class="ps-dot">↺</div><span>Mapping data to Excel template…</span></div>
-      <div class="p-step" id="ps3"><div class="ps-dot">↺</div><span>Generating output file…</span></div>
-    </div>
-
-    <div class="prog-wrap" id="progWrap"><div class="prog-fill" id="progFill"></div></div>
     <div class="status-row"><span id="status"></span></div>
 
   </div>
@@ -817,31 +792,8 @@ function setStatus(msg, cls){
   el.textContent = msg; el.className = (cls||'') + ' pop';
 }
 
-/* Animate the 3 progress steps over ~3 s, returns a Promise that resolves when done */
-function animateSteps(){
-  return new Promise(resolve => {
-    const steps  = ['ps1','ps2','ps3'];
-    const delays = [0, 900, 2000];
-    const progs  = [28, 62, 88];
-    const fill   = document.getElementById('progFill');
-    document.getElementById('procSteps').style.display = 'flex';
-    document.getElementById('progWrap').style.display  = 'block';
-    steps.forEach((id, i) => {
-      setTimeout(() => {
-        if(i > 0) document.getElementById(steps[i-1]).className = 'p-step done';
-        document.getElementById(id).className = 'p-step active';
-        fill.style.width = progs[i] + '%';
-      }, delays[i]);
-    });
-    /* resolve after last step finishes (~3100 ms total) */
-    setTimeout(resolve, delays[2] + 1100);
-  });
-}
-
-function finishSteps(){
-  document.getElementById('ps3').className = 'p-step done';
-  document.getElementById('progFill').style.width = '100%';
-}
+function animateSteps(){ return Promise.resolve(); }
+function finishSteps(){}
 
 function launchConfetti(){
   const canvas = document.getElementById('confetti');
@@ -947,8 +899,6 @@ async function upload(){
       msg = '❌ ' + msg;
     setStatus(msg, 'error');
     resetBtn();
-    document.getElementById('procSteps').style.display = 'none';
-    document.getElementById('progWrap').style.display  = 'none';
   }
 }
 
@@ -967,10 +917,6 @@ function resetForm(){
    ['excelMain','Choose Excel'],['excelHint','drag & drop or click']]
     .forEach(([id,txt])=>document.getElementById(id).textContent=txt);
   ['pdfWrap','excelWrap'].forEach(id=>document.getElementById(id).classList.remove('has-file'));
-  document.getElementById('procSteps').style.display='none';
-  document.getElementById('progWrap').style.display='none';
-  document.getElementById('progFill').style.width='0%';
-  ['ps1','ps2','ps3'].forEach(id=>document.getElementById(id).className='p-step');
   setStatus('',''); resetBtn(); updateSteps();
 }
 
