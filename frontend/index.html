@@ -282,7 +282,22 @@ html,body{
 }
 .main-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(37,99,235,.45);}
 .main-btn:active{transform:translateY(0);}
-.main-btn.loading{pointer-events:none;opacity:.8;}
+.main-btn.loading{pointer-events:none;opacity:.9;}
+.main-btn.loading .btn-inner-wrap{opacity:.85;}
+/* Animated dots shown below button while processing */
+.processing-dots{
+  display:none;align-items:center;justify-content:center;gap:5px;
+  margin-top:10px;height:16px;
+}
+.processing-dots.show{display:flex;}
+.processing-dots span{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--blue);opacity:.3;
+  animation:dotBounce 1.2s ease-in-out infinite;
+}
+.processing-dots span:nth-child(2){animation-delay:.2s;}
+.processing-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes dotBounce{0%,80%,100%{transform:scale(.7);opacity:.3;}40%{transform:scale(1);opacity:1;}}
 .main-btn::before{content:'';position:absolute;top:0;left:-100%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-15deg);animation:btnShine 3s ease-in-out infinite;}
 @keyframes btnShine{0%,100%{left:-100%;}50%{left:160%;}}
 .btn-inner-wrap{display:flex;align-items:center;justify-content:center;gap:9px;position:relative;z-index:1;}
@@ -477,6 +492,7 @@ html,body{
       </div>
     </button>
 
+    <div class="processing-dots" id="procDots"><span></span><span></span><span></span></div>
     <div class="status-row"><span id="status"></span></div>
 
   </div>
@@ -842,9 +858,9 @@ async function upload(){
 
   /* ── Lock UI ── */
   btn.classList.add('loading'); btn.disabled = true;
-  document.getElementById('btnInner').innerHTML =
-    '<svg viewBox="0 0 24 24" style="animation:spinI .8s linear infinite;fill:none;stroke:white;stroke-width:2.5;stroke-linecap:round;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Processing\u2026';
-  setStatus('Uploading files…', '');
+  document.getElementById('procDots').classList.add('show');
+  document.getElementById('btnInner').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" style="animation:spinI .7s linear infinite;flex-shrink:0;" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><span>Processing…</span>';
+  setStatus('', '');
 
   /* ── Build FormData exactly as backend expects ──
        pdf        → PDF file
@@ -905,6 +921,7 @@ async function upload(){
 function resetBtn(){
   const btn = document.getElementById('mainBtn');
   btn.classList.remove('loading'); btn.disabled = false;
+  document.getElementById('procDots').classList.remove('show');
   document.getElementById('btnInner').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Process &amp; Download';
 }
 
