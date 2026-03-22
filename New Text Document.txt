@@ -1,0 +1,10 @@
+@echo off
+title College Marksheet Automation
+
+cd /d "C:\Users\acer\Desktop\NEW UI my project"
+
+start http://127.0.0.1:5000
+
+python backend.py
+
+pause

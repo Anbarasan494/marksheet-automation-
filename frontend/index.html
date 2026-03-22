@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Marksheet Processor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&family=Google+Sans+Display:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef2f8;
+  --surface:#ffffff;
+  --surface2:#f4f7fc;
+  --border:rgba(60,100,180,.1);
+  --border2:rgba(60,100,180,.18);
+  --blue:#2563eb;
+  --blue-light:#3b82f6;
+  --blue-pale:#dbeafe;
+  --cyan:#0ea5e9;
+  --green:#10b981;
+  --red:#ef4444;
+  --yellow:#f59e0b;
+  --text:#0f172a;
+  --text2:#475569;
+  --text3:#94a3b8;
+  --r:22px;
+  --rr:14px;
+  --shadow:0 4px 24px rgba(37,99,235,.08), 0 1px 4px rgba(0,0,0,.06);
+  --shadow-lg:0 12px 48px rgba(37,99,235,.12), 0 2px 8px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  font-family:'Google Sans',sans-serif;
+  background:var(--bg);
+  min-height:100vh;
+  overflow:hidden;
+  position:relative;
+  color:var(--text);
+  cursor:default;
+}
+
+/* ═══════════════ BACKGROUND ═══════════════ */
+#ag-canvas{position:fixed;inset:0;z-index:0;}
+
+.bg-grid{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(37,99,235,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37,99,235,.04) 1px, transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+}
+
+/* ═══════════════ PAGE TRANSITIONS ═══════════════ */
+.page{
+  position:fixed;inset:0;z-index:10;
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity .45s ease, transform .45s cubic-bezier(.22,1,.36,1);
+}
+.page.hidden{opacity:0;transform:scale(.96);pointer-events:none;}
+.page.exit{opacity:0;transform:scale(1.04) translateY(-16px);}
+
+/* ═══════════════ LOGIN CARD ═══════════════ */
+.login-card{
+  width:420px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:48px 40px 40px;
+  position:relative;overflow:hidden;
+  box-shadow:var(--shadow-lg);
+  animation:cardIn .7s cubic-bezier(.22,1,.36,1) both;
+}
+.login-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(37,99,235,.025) 0%,transparent 55%);
+  pointer-events:none;border-radius:var(--r);
+}
+.login-card::after{
+  content:'';position:absolute;top:0;left:20%;right:20%;
+  height:2px;border-radius:0 0 4px 4px;
+  background:linear-gradient(90deg,transparent,var(--blue),transparent);
+  opacity:.35;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(36px) scale(.95);}to{opacity:1;transform:none;}}
+
+.login-brand{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+.login-brand-icon{
+  width:42px;height:42px;border-radius:13px;
+  background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  border:1px solid rgba(37,99,235,.18);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 10px rgba(37,99,235,.1);
+}
+.login-brand-name{font-family:'Google Sans Display',sans-serif;font-size:15px;font-weight:700;color:var(--text);}
+.login-brand-sub{font-size:11px;color:var(--text3);margin-top:2px;font-family:'DM Mono',monospace;}
+
+.login-heading{font-family:'Google Sans Display',sans-serif;font-size:26px;font-weight:700;color:var(--text);letter-spacing:-.5px;margin-bottom:6px;}
+.login-sub{font-size:13px;color:var(--text2);margin-bottom:28px;line-height:1.5;}
+
+.login-error{
+  display:none;align-items:center;gap:8px;
+  padding:10px 14px;margin-bottom:16px;
+  background:#fef2f2;border:1px solid #fecaca;
+  border-radius:10px;font-size:12.5px;color:#dc2626;
+  animation:errPop .3s cubic-bezier(.34,1.56,.64,1);
+}
+.login-error.show{display:flex;}
+@keyframes errPop{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+
+.login-field{margin-bottom:16px;}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.9px;text-transform:uppercase;margin-bottom:7px;}
+.login-input-wrap{position:relative;}
+.login-input-wrap input{
+  width:100%;padding:12px 42px 12px 15px;
+  background:var(--surface2);border:1.5px solid var(--border2);
+  border-radius:var(--rr);font-size:14px;font-family:'Google Sans',sans-serif;
+  color:var(--text);outline:none;transition:all .25s;
+}
+.login-input-wrap input::placeholder{color:var(--text3);}
+.login-input-wrap input:focus{
+  border-color:var(--blue);background:#fff;
+  box-shadow:0 0 0 3px rgba(37,99,235,.1);
+}
+.eye-btn{
+  position:absolute;right:13px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;color:var(--text3);padding:2px;
+  transition:color .2s;
+}
+.eye-btn:hover{color:var(--text2);}
+.eye-btn svg{width:16px;height:16px;display:block;}
+
+.login-btn{
+  width:100%;margin-top:8px;padding:14px;
+  background:linear-gradient(135deg,var(--blue),#1d4ed8);
+  border:none;border-radius:var(--rr);
+  font-family:'Google Sans',sans-serif;font-size:14px;font-weight:600;
+  color:white;cursor:pointer;position:relative;overflow:hidden;
+  transition:transform .2s, box-shadow .2s;
+  box-shadow:0 4px 20px rgba(37,99,235,.35);
+  letter-spacing:.2px;
+}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(37,99,235,.45);}
+.login-btn:active{transform:translateY(0);}
+.login-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.12),transparent);}
+.login-btn-inner{display:flex;align-items:center;justify-content:center;gap:8px;position:relative;z-index:1;}
+.login-footer{margin-top:28px;padding-top:20px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;}
+.login-footer span{color:var(--blue);opacity:.8;}
+
+/* ═══════════════ APP CARD ═══════════════ */
+.app-card{
+  width:490px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:34px 34px 26px;
+  position:relative;overflow:hidden;
+  box-shadow:var(--shadow-lg);
+  animation:cardIn .7s cubic-bezier(.22,1,.36,1) both;
+}
+.app-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(37,99,235,.02) 0%,transparent 55%);pointer-events:none;border-radius:var(--r);}
+.app-card::after{content:'';position:absolute;top:0;left:15%;right:15%;height:2px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,transparent,var(--blue),transparent);opacity:.4;}
+
+/* TOPBAR */
+.app-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.app-logo{display:flex;align-items:center;gap:10px;}
+.app-logo-icon{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  border:1px solid rgba(37,99,235,.18);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(37,99,235,.1);
+}
+.app-logo-text{font-family:'Google Sans Display',sans-serif;font-size:14px;font-weight:700;color:var(--text);}
+.app-logo-sub{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px;}
+.user-chip{
+  display:flex;align-items:center;gap:7px;
+  padding:6px 12px 6px 8px;
+  background:var(--surface2);border:1.5px solid var(--border2);
+  border-radius:40px;cursor:pointer;
+  transition:background .2s, border-color .2s, box-shadow .2s;
+  position:relative;
+}
+.user-chip:hover{background:#eff6ff;border-color:rgba(37,99,235,.3);box-shadow:0 2px 8px rgba(37,99,235,.08);}
+.user-chip-tooltip{
+  position:absolute;bottom:-32px;right:0;
+  background:var(--text);color:#fff;
+  border-radius:7px;padding:4px 10px;
+  font-size:10px;white-space:nowrap;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+  font-family:'DM Mono',monospace;
+}
+.user-chip:hover .user-chip-tooltip{opacity:1;}
+.user-avatar{
+  width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,var(--blue),var(--cyan));
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:white;font-family:'DM Mono',monospace;
+}
+.user-name{font-size:11.5px;font-weight:600;color:var(--text2);}
+.user-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:dotPulse 2s ease infinite;}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 3px var(--green);}50%{box-shadow:0 0 9px var(--green);}}
+
+/* STEP TRACK */
+.step-track{
+  display:flex;align-items:center;
+  margin-bottom:22px;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:13px;padding:13px 20px;
+}
+.s-node{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;}
+.s-circle{
+  width:26px;height:26px;border-radius:50%;
+  border:1.5px solid var(--border2);background:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:var(--text3);
+  font-family:'DM Mono',monospace;
+  transition:all .4s cubic-bezier(.34,1.56,.64,1);
+}
+.s-circle.active{border-color:var(--blue);background:var(--blue-pale);color:var(--blue);transform:scale(1.2);box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+.s-circle.done{border-color:var(--green);background:#d1fae5;color:var(--green);}
+.s-label{font-size:9px;font-weight:600;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;transition:color .3s;}
+.s-node.active .s-label{color:var(--blue);}
+.s-node.done .s-label{color:var(--green);}
+.s-line{flex:1;height:1.5px;background:var(--border2);margin:0 4px 16px;border-radius:2px;overflow:hidden;position:relative;}
+.s-line-fill{position:absolute;inset:0;background:linear-gradient(90deg,var(--blue),var(--cyan));width:0%;transition:width .6s ease;}
+
+/* SECTION TITLE */
+.section-title{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.9px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* UPLOAD ZONES */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.drop-zone{
+  position:relative;border:1.5px dashed var(--border2);
+  border-radius:var(--rr);padding:18px 14px;cursor:pointer;
+  background:var(--surface2);overflow:hidden;transition:all .3s;
+  display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;
+}
+.drop-zone:hover{border-color:var(--blue);background:#eff6ff;transform:translateY(-2px);box-shadow:0 4px 16px rgba(37,99,235,.1);}
+.drop-zone.drag-over{border-color:var(--blue);border-style:solid;background:#dbeafe;}
+.drop-zone.has-file{border-style:solid;border-color:rgba(37,99,235,.4);background:#eff6ff;}
+.drop-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;transition:transform .3s;}
+.drop-zone:hover .drop-icon{transform:scale(1.1) rotate(-6deg);}
+.drop-icon.pdf-ic{background:#fef2f2;border:1.5px solid #fecaca;}
+.drop-icon.xlsx-ic{background:#f0fdf4;border:1.5px solid #bbf7d0;}
+.drop-icon svg{width:16px;height:16px;}
+.drop-main{font-size:12px;font-weight:500;color:var(--text2);transition:color .3s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.drop-zone.has-file .drop-main{color:var(--text);}
+.drop-hint{font-size:10px;color:var(--text3);transition:color .3s;}
+.drop-zone.has-file .drop-hint{color:var(--blue);}
+.drop-badge{font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 8px;border-radius:20px;}
+.drop-badge.pdf{background:#fee2e2;color:#dc2626;border:1px solid #fecaca;}
+.drop-badge.xlsx{background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0;}
+@keyframes dropPop{0%{transform:scale(.95);}60%{transform:scale(1.03);}100%{transform:scale(1);}}
+.drop-zone.pop{animation:dropPop .4s cubic-bezier(.34,1.56,.64,1);}
+.ripple-ring{position:absolute;border-radius:50%;pointer-events:none;animation:rOut .6s ease-out forwards;border:2px solid rgba(37,99,235,.25);}
+@keyframes rOut{from{width:0;height:0;opacity:1;top:50%;left:50%;transform:translate(-50%,-50%);}to{width:200%;height:200%;opacity:0;top:50%;left:50%;transform:translate(-50%,-50%);}}
+
+/* SHEET INPUT */
+.sheet-field{margin-bottom:18px;}
+.sheet-input-wrap{position:relative;}
+.sheet-input-wrap input{
+  width:100%;padding:12px 16px 12px 42px;
+  background:var(--surface2);border:1.5px solid var(--border2);
+  border-radius:var(--rr);font-size:13.5px;font-family:'Google Sans',sans-serif;
+  color:var(--text);outline:none;transition:all .25s;
+}
+.sheet-input-wrap input::placeholder{color:var(--text3);}
+.sheet-input-wrap input:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.sheet-input-wrap .input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;}
+.sheet-input-wrap .input-icon svg{width:15px;height:15px;fill:var(--text3);display:block;}
+
+/* MAIN BTN */
+.main-btn{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--blue),#1d4ed8);
+  border:none;border-radius:var(--rr);
+  font-family:'Google Sans',sans-serif;font-size:14px;font-weight:600;
+  color:white;cursor:pointer;position:relative;overflow:hidden;
+  transition:transform .2s, box-shadow .2s;
+  box-shadow:0 4px 20px rgba(37,99,235,.35);
+  letter-spacing:.2px;
+}
+.main-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(37,99,235,.45);}
+.main-btn:active{transform:translateY(0);}
+.main-btn.loading{pointer-events:none;opacity:.8;}
+.main-btn::before{content:'';position:absolute;top:0;left:-100%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-15deg);animation:btnShine 3s ease-in-out infinite;}
+@keyframes btnShine{0%,100%{left:-100%;}50%{left:160%;}}
+.btn-inner-wrap{display:flex;align-items:center;justify-content:center;gap:9px;position:relative;z-index:1;}
+.btn-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.2);pointer-events:none;animation:bRip .6s ease-out forwards;transform:scale(0);}
+@keyframes bRip{to{transform:scale(5);opacity:0;}}
+
+/* PROCESS STEPS */
+.proc-steps{display:none;flex-direction:column;gap:6px;margin-top:14px;}
+.p-step{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 13px;border-radius:10px;
+  background:var(--surface2);border:1.5px solid transparent;
+  font-size:12px;color:var(--text3);font-weight:500;
+  opacity:.4;transform:translateX(-8px);
+  transition:all .4s cubic-bezier(.22,1,.36,1);
+}
+.p-step.active{opacity:1;transform:none;background:#eff6ff;border-color:rgba(37,99,235,.2);color:var(--text2);}
+.p-step.done{opacity:1;transform:none;background:#f0fdf4;border-color:#bbf7d0;color:#15803d;}
+.ps-dot{width:18px;height:18px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--border2);transition:all .3s;font-style:normal;}
+.p-step.active .ps-dot{background:var(--blue);color:#fff;animation:spin .8s linear infinite;}
+.p-step.done .ps-dot{background:var(--green);color:#fff;animation:none;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.prog-wrap{display:none;margin-top:10px;height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden;}
+.prog-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--cyan));transition:width .5s ease;border-radius:4px;}
+
+.status-row{min-height:20px;text-align:center;margin-top:10px;}
+#status{font-size:12px;font-weight:500;color:var(--text2);display:inline-block;transition:all .3s;max-width:100%;word-break:break-word;line-height:1.5;}
+#status.error{color:var(--red);}
+#status.success{color:var(--green);}
+@keyframes sPop{from{opacity:0;transform:scale(.8);}to{opacity:1;transform:scale(1);}}
+#status.pop{animation:sPop .35s cubic-bezier(.34,1.56,.64,1);}
+
+/* SUCCESS OVERLAY */
+.success-overlay{
+  position:absolute;inset:0;z-index:20;border-radius:var(--r);
+  background:rgba(255,255,255,.97);backdrop-filter:blur(12px);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+}
+.success-overlay.show{display:flex;animation:olIn .5s cubic-bezier(.22,1,.36,1);}
+@keyframes olIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
+.suc-ring{
+  width:80px;height:80px;border-radius:50%;
+  background:#d1fae5;border:2px solid #6ee7b7;
+  display:flex;align-items:center;justify-content:center;
+  animation:sucBounce .6s .1s cubic-bezier(.34,1.56,.64,1) both, sucPing 2s .8s ease-out infinite;
+}
+@keyframes sucBounce{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+@keyframes sucPing{0%{box-shadow:0 0 0 0 rgba(16,185,129,.25);}100%{box-shadow:0 0 0 28px rgba(16,185,129,0);}}
+.suc-ring svg{width:36px;height:36px;stroke:#059669;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke-dasharray:60;stroke-dashoffset:60;animation:drawCk .5s .5s ease forwards;}
+@keyframes drawCk{to{stroke-dashoffset:0;}}
+.suc-title{font-family:'Google Sans Display',sans-serif;font-size:20px;font-weight:700;color:var(--text);}
+.suc-sub{font-size:13px;color:var(--text2);text-align:center;max-width:260px;line-height:1.5;}
+.suc-badge{font-size:10px;font-weight:600;padding:4px 12px;border-radius:20px;background:#dcfce7;border:1px solid #bbf7d0;color:#15803d;font-family:'DM Mono',monospace;animation:fadeUp .4s .7s both;}
+.btn-reset{margin-top:4px;padding:10px 28px;border:1.5px solid rgba(37,99,235,.3);border-radius:var(--rr);background:var(--blue-pale);color:var(--blue);font-family:'Google Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .25s;}
+.btn-reset:hover{background:var(--blue);color:white;transform:translateY(-1px);box-shadow:0 4px 16px rgba(37,99,235,.3);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:999;}
+</style>
+</head>
+<body>
+
+<canvas id="ag-canvas"></canvas>
+<div class="bg-grid"></div>
+<canvas id="confetti"></canvas>
+
+<!-- ═══════ LOGIN ═══════ -->
+<div class="page" id="loginPage">
+  <div class="login-card" id="loginCard">
+    <div class="login-brand">
+      <div class="login-brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </div>
+      <div>
+        <div class="login-brand-name">Marksheet Processor</div>
+        <div class="login-brand-sub">v2.0 · secure access</div>
+      </div>
+    </div>
+
+    <div class="login-heading">Welcome back</div>
+    <div class="login-sub">Sign in to access your workspace.</div>
+
+    <div class="login-error" id="loginError">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Invalid credentials. Please try again.</span>
+    </div>
+
+    <div class="login-field">
+      <label>Username</label>
+      <div class="login-input-wrap">
+        <input type="text" id="loginUser" placeholder="Enter your username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+    </div>
+
+    <div class="login-field">
+      <label>Password</label>
+      <div class="login-input-wrap">
+        <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="eye-btn" onclick="togglePass()" type="button" tabindex="-1">
+          <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="login-btn" onclick="doLogin()">
+      <div class="login-btn-inner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        Sign In
+      </div>
+    </button>
+
+    <div class="login-footer">Secured &middot; <span>Private Access Only</span></div>
+  </div>
+</div>
+
+<!-- ═══════ MAIN APP ═══════ -->
+<div class="page hidden" id="appPage">
+  <div class="app-card" id="appCard">
+
+    <div class="success-overlay" id="successOverlay">
+      <div class="suc-ring"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="suc-title">Download Complete!</div>
+      <div class="suc-sub">Your marksheet has been processed and saved successfully.</div>
+      <div class="suc-badge">college_filled_marks.xlsx</div>
+      <button class="btn-reset" onclick="resetForm()">Process Another File</button>
+    </div>
+
+    <div class="app-topbar">
+      <div class="app-logo">
+        <div class="app-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+          </svg>
+        </div>
+        <div>
+          <div class="app-logo-text">Marksheet Processor</div>
+          <div class="app-logo-sub">auto-fill engine</div>
+        </div>
+      </div>
+      <div class="user-chip" onclick="logout()">
+        <div class="user-avatar">A</div>
+        <div class="user-name">anbu</div>
+        <div class="user-dot"></div>
+        <div class="user-chip-tooltip">Click to sign out</div>
+      </div>
+    </div>
+
+    <div class="step-track">
+      <div class="s-node active" id="sn1"><div class="s-circle active" id="sc1">1</div><span class="s-label">Upload</span></div>
+      <div class="s-line"><div class="s-line-fill" id="sl1"></div></div>
+      <div class="s-node" id="sn2"><div class="s-circle" id="sc2">2</div><span class="s-label">Configure</span></div>
+      <div class="s-line"><div class="s-line-fill" id="sl2"></div></div>
+      <div class="s-node" id="sn3"><div class="s-circle" id="sc3">3</div><span class="s-label">Process</span></div>
+    </div>
+
+    <div class="section-title">Upload Files</div>
+    <div class="upload-grid">
+      <div class="drop-zone" id="pdfWrap"
+           ondragover="hdOver(event,'pdfWrap')" ondragleave="hdLeave(event,'pdfWrap')"
+           ondrop="hdDrop(event,'pdf','pdfMain','pdfHint','pdfWrap')"
+           onclick="trigFile('pdf',event)">
+        <input type="file" id="pdf" accept=".pdf"
+               onchange="hdFile(this,'pdfMain','pdfHint','pdfWrap')"
+               onclick="event.stopPropagation()">
+        <div class="drop-icon pdf-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="drop-main" id="pdfMain">Choose PDF</div>
+        <div class="drop-hint" id="pdfHint">drag &amp; drop or click</div>
+        <span class="drop-badge pdf">PDF</span>
+      </div>
+      <div class="drop-zone" id="excelWrap"
+           ondragover="hdOver(event,'excelWrap')" ondragleave="hdLeave(event,'excelWrap')"
+           ondrop="hdDrop(event,'excel','excelMain','excelHint','excelWrap')"
+           onclick="trigFile('excel',event)">
+        <input type="file" id="excel" accept=".xlsx"
+               onchange="hdFile(this,'excelMain','excelHint','excelWrap')"
+               onclick="event.stopPropagation()">
+        <div class="drop-icon xlsx-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+        </div>
+        <div class="drop-main" id="excelMain">Choose Excel</div>
+        <div class="drop-hint" id="excelHint">drag &amp; drop or click</div>
+        <span class="drop-badge xlsx">XLSX</span>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:4px;">Sheet Configuration</div>
+    <div class="sheet-field">
+      <div class="sheet-input-wrap">
+        <input type="text" id="sheet_name" placeholder="Sheet name  e.g. MARK · Sheet1 · Results" oninput="updateSteps()">
+        <div class="input-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <button class="main-btn" id="mainBtn" onclick="hdBtnClick(event)">
+      <div class="btn-inner-wrap" id="btnInner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Process &amp; Download
+      </div>
+    </button>
+
+    <div class="proc-steps" id="procSteps">
+      <div class="p-step" id="ps1"><div class="ps-dot">↺</div><span>Reading PDF content…</span></div>
+      <div class="p-step" id="ps2"><div class="ps-dot">↺</div><span>Mapping data to Excel template…</span></div>
+      <div class="p-step" id="ps3"><div class="ps-dot">↺</div><span>Generating output file…</span></div>
+    </div>
+
+    <div class="prog-wrap" id="progWrap"><div class="prog-fill" id="progFill"></div></div>
+    <div class="status-row"><span id="status"></span></div>
+
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   ANTIGRAVITY BUBBLE BACKGROUND — LIGHT THEME
+   Rings + filled bubbles react to cursor
+═══════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('ag-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H;
+  let mouseX = -9999, mouseY = -9999;
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
+  /* ─── RING (outline circle, Antigravity style) ─── */
+  class Ring {
+    constructor(){
+      this.reset(true);
+    }
+    reset(init){
+      this.x  = Math.random() * W;
+      this.y  = Math.random() * H;
+      this.r  = 40 + Math.random() * 110;
+      this.thick = 1.5 + Math.random() * 3;
+      this.op = 0.45 + Math.random() * 0.40;
+      // base velocity
+      this.bvx = (Math.random() - .5) * 0.22;
+      this.bvy = (Math.random() - .5) * 0.18;
+      this.vx  = this.bvx;
+      this.vy  = this.bvy;
+      this.rot = Math.random() * Math.PI * 2;
+      this.rotV= (Math.random() - .5) * 0.004;
+      this.scaleX = 0.45 + Math.random() * 0.85;
+      this.pulse  = Math.random() * Math.PI * 2;
+      this.pulseV = 0.007 + Math.random() * 0.012;
+      // colour: blue(37,99,235) ↔ cyan(14,165,233)
+      this.t = Math.random();
+      if(init) { this.pulse = Math.random() * Math.PI * 2; }
+    }
+    update(){
+      // cursor repulsion
+      const dx = this.x - mouseX;
+      const dy = this.y - mouseY;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      const force = Math.max(0, 220 - dist) / 220;
+      if(force > 0){
+        const push = force * force * 1.8;
+        this.vx += (dx / dist) * push;
+        this.vy += (dy / dist) * push;
+      }
+      // spring back to base velocity
+      this.vx += (this.bvx - this.vx) * 0.04;
+      this.vy += (this.bvy - this.vy) * 0.04;
+      this.x  += this.vx;
+      this.y  += this.vy;
+      this.rot  += this.rotV;
+      this.pulse += this.pulseV;
+      const pad = this.r * 2;
+      if(this.x < -pad) this.x = W + pad;
+      if(this.x > W+pad) this.x = -pad;
+      if(this.y < -pad) this.y = H + pad;
+      if(this.y > H+pad) this.y = -pad;
+    }
+    draw(){
+      const o  = this.op * (0.65 + 0.35 * Math.sin(this.pulse));
+      const r  = Math.round(15  + this.t * (7   - 15 ));
+      const g  = Math.round(23  + this.t * (89  - 23 ));
+      const b  = Math.round(42  + this.t * (133 - 42 ));
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rot);
+      ctx.scale(this.scaleX, 1);
+      ctx.beginPath();
+      ctx.arc(0, 0, this.r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${o})`;
+      ctx.lineWidth   = this.thick;
+      ctx.stroke();
+      if(this.r > 60){
+        ctx.beginPath();
+        ctx.arc(0, 0, this.r * 0.55, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${o * 0.3})`;
+        ctx.lineWidth   = this.thick * 0.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  /* ─── BUBBLE (filled soft circle, reacts to cursor) ─── */
+  class Bubble {
+    constructor(){
+      this.reset(true);
+    }
+    reset(init){
+      this.x  = Math.random() * W;
+      this.y  = Math.random() * H;
+      this.r  = 14 + Math.random() * 48;
+      this.bvx = (Math.random() - .5) * 0.3;
+      this.bvy = (Math.random() - .5) * 0.3;
+      this.vx  = this.bvx;
+      this.vy  = this.bvy;
+      this.op  = 0.72 + Math.random() * 0.28;
+      this.pulse  = Math.random() * Math.PI * 2;
+      this.pulseV = 0.008 + Math.random() * 0.014;
+      // fully dark palette
+      const palettes = [
+        [15,  23,  42],   // slate-900
+        [30,  27,  75],   // indigo-950
+        [7,   89, 133],   // dark cyan-blue
+        [17,  24,  39],   // gray-900
+        [49,  46, 129],   // indigo-800
+        [3,   52,  97],   // deep navy
+        [55,  48, 107],   // dark violet
+        [10,  15,  30],   // near-black blue
+        [28,  25,  65],   // deep purple-navy
+      ];
+      this.col = palettes[~~(Math.random() * palettes.length)];
+      if(init) this.pulse = Math.random() * Math.PI * 2;
+    }
+    update(){
+      const dx   = this.x - mouseX;
+      const dy   = this.y - mouseY;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      const force = Math.max(0, 160 - dist) / 160;
+      if(force > 0){
+        const push = force * force * 2.4;
+        this.vx += (dx / dist) * push;
+        this.vy += (dy / dist) * push;
+      }
+      this.vx += (this.bvx - this.vx) * 0.05;
+      this.vy += (this.bvy - this.vy) * 0.05;
+      this.x  += this.vx;
+      this.y  += this.vy;
+      this.pulse += this.pulseV;
+      const pad = this.r * 2;
+      if(this.x < -pad) this.x = W + pad;
+      if(this.x > W+pad) this.x = -pad;
+      if(this.y < -pad) this.y = H + pad;
+      if(this.y > H+pad) this.y = -pad;
+    }
+    draw(){
+      const o = this.op * (0.88 + 0.12 * Math.sin(this.pulse));
+      const [r,g,b] = this.col;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${o})`;
+      ctx.fill();
+    }
+  }
+
+  /* ─── CURSOR GLOW ─── */
+  function drawCursorGlow(){
+    if(mouseX < 0) return;
+    const grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 180);
+    grad.addColorStop(0,   'rgba(15,23,42,0.07)');
+    grad.addColorStop(0.5, 'rgba(30,27,75,0.03)');
+    grad.addColorStop(1,   'rgba(15,23,42,0)');
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, 180, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // Initialise
+  const rings   = Array.from({length: 26}, () => new Ring());
+  const bubbles = Array.from({length: 40}, () => new Bubble());
+
+  (function loop(){
+    ctx.clearRect(0, 0, W, H);
+    drawCursorGlow();
+    bubbles.forEach(b => { b.update(); b.draw(); });
+    rings.forEach(r   => { r.update(); r.draw(); });
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ═══════════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════════ */
+function togglePass(){
+  const inp = document.getElementById('loginPass');
+  const ic  = document.getElementById('eyeIcon');
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    ic.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    inp.type = 'password';
+    ic.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
+function doLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  if(u === 'anbu' && p === '12345678'){
+    err.classList.remove('show');
+    const lp = document.getElementById('loginPage');
+    lp.classList.add('exit');
+    setTimeout(()=>{
+      lp.classList.add('hidden'); lp.classList.remove('exit');
+      document.getElementById('appPage').classList.remove('hidden');
+    }, 460);
+  } else {
+    err.classList.add('show');
+    const c = document.getElementById('loginCard');
+    c.style.animation = 'none'; void c.offsetWidth;
+    c.style.animation = 'shake .4s ease';
+  }
+}
+
+function logout(){
+  const ap = document.getElementById('appPage');
+  ap.classList.add('exit');
+  setTimeout(()=>{
+    ap.classList.add('hidden'); ap.classList.remove('exit');
+    document.getElementById('loginPage').classList.remove('hidden');
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginError').classList.remove('show');
+  }, 460);
+}
+
+/* ═══════════════════════════════════════════════
+   FILE HANDLING
+═══════════════════════════════════════════════ */
+function addRipple(el){
+  const r = document.createElement('div'); r.className = 'ripple-ring';
+  el.appendChild(r); setTimeout(()=>r.remove(), 700);
+}
+function trigFile(id, e){
+  if(e && e.target && e.target.type === 'file') return;
+  addRipple(e.currentTarget);
+  document.getElementById(id).click();
+}
+function hdOver(e, id){ e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
+function hdLeave(e, id){
+  e.preventDefault();
+  const w = document.getElementById(id);
+  if(!w.contains(e.relatedTarget)) w.classList.remove('drag-over');
+}
+function hdDrop(e, inp, main, hint, wrap){
+  e.preventDefault();
+  const w = document.getElementById(wrap); w.classList.remove('drag-over');
+  const files = e.dataTransfer.files; if(!files || !files.length) return;
+  const file = files[0];
+  const i = document.getElementById(inp);
+  const ext = file.name.split('.').pop().toLowerCase();
+  const ok  = i.accept.replace('.','').toLowerCase();
+  if(ext !== ok){ setStatus(`⚠️ Please drop a .${ok} file.`, 'error'); return; }
+  const dt = new DataTransfer(); dt.items.add(file); i.files = dt.files;
+  hdFile(i, main, hint, wrap);
+}
+function hdFile(inp, mainId, hintId, wrapId){
+  const f = inp.files[0]; if(!f) return;
+  document.getElementById(mainId).textContent = f.name;
+  document.getElementById(hintId).textContent = (f.size/1024).toFixed(1) + ' KB · Ready ✓';
+  const w = document.getElementById(wrapId);
+  w.classList.add('has-file'); w.classList.remove('pop');
+  void w.offsetWidth; w.classList.add('pop');
+  updateSteps();
+}
+
+/* ═══════════════════════════════════════════════
+   STEP TRACKER
+═══════════════════════════════════════════════ */
+function updateSteps(){
+  const hasPdf = !!document.getElementById('pdf').files[0];
+  const hasXls = !!document.getElementById('excel').files[0];
+  const hasNm  = !!document.getElementById('sheet_name').value.trim();
+  setNode(1, true, hasPdf || hasXls);
+  setNode(2, hasPdf || hasXls, hasPdf && hasXls && hasNm);
+  setNode(3, hasPdf && hasXls && hasNm, false);
+  document.getElementById('sl1').style.width = (hasPdf || hasXls)         ? '100%' : '0%';
+  document.getElementById('sl2').style.width = (hasPdf && hasXls && hasNm)? '100%' : '0%';
+}
+function setNode(n, active, done){
+  const sc = document.getElementById('sc'+n);
+  const sn = document.getElementById('sn'+n);
+  sc.className = 's-circle' + (done?' done': active?' active':'');
+  sn.className = 's-node'   + (done?' done': active?' active':'');
+  sc.textContent = done ? '✓' : n;
+}
+
+/* ═══════════════════════════════════════════════
+   BUTTON
+═══════════════════════════════════════════════ */
+function hdBtnClick(e){
+  const btn = document.getElementById('mainBtn');
+  const r   = document.createElement('span'); r.className = 'btn-ripple';
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px;`;
+  btn.appendChild(r); setTimeout(()=>r.remove(), 700);
+  upload();
+}
+
+/* ═══════════════════════════════════════════════
+   PROCESSING
+═══════════════════════════════════════════════ */
+function setStatus(msg, cls){
+  const el = document.getElementById('status');
+  el.textContent = msg; el.className = (cls||'') + ' pop';
+}
+
+/* Animate the 3 progress steps over ~3 s, returns a Promise that resolves when done */
+function animateSteps(){
+  return new Promise(resolve => {
+    const steps  = ['ps1','ps2','ps3'];
+    const delays = [0, 900, 2000];
+    const progs  = [28, 62, 88];
+    const fill   = document.getElementById('progFill');
+    document.getElementById('procSteps').style.display = 'flex';
+    document.getElementById('progWrap').style.display  = 'block';
+    steps.forEach((id, i) => {
+      setTimeout(() => {
+        if(i > 0) document.getElementById(steps[i-1]).className = 'p-step done';
+        document.getElementById(id).className = 'p-step active';
+        fill.style.width = progs[i] + '%';
+      }, delays[i]);
+    });
+    /* resolve after last step finishes (~3100 ms total) */
+    setTimeout(resolve, delays[2] + 1100);
+  });
+}
+
+function finishSteps(){
+  document.getElementById('ps3').className = 'p-step done';
+  document.getElementById('progFill').style.width = '100%';
+}
+
+function launchConfetti(){
+  const canvas = document.getElementById('confetti');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const cols = ['#2563eb','#3b82f6','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
+  const pieces = Array.from({length:150}, ()=>({
+    x: Math.random()*canvas.width, y: -10 - Math.random()*120,
+    r: 2 + Math.random()*5, color: cols[~~(Math.random()*cols.length)],
+    vx:(Math.random()-.5)*5, vy: 2.5+Math.random()*5,
+    rot:Math.random()*360, rotV:(Math.random()-.5)*8,
+    shape:Math.random()>.5?'rect':'circle', w:5+Math.random()*8, h:2+Math.random()*5
+  }));
+  let start = performance.now();
+  (function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const elapsed = performance.now()-start;
+    pieces.forEach(p=>{
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot*Math.PI/180);
+      ctx.globalAlpha = Math.max(0, 1-elapsed/3800) * (1 - p.y/canvas.height*.35);
+      ctx.fillStyle = p.color;
+      if(p.shape==='rect') ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      else { ctx.beginPath(); ctx.arc(0,0,p.r,0,Math.PI*2); ctx.fill(); }
+      ctx.restore();
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.rotV; p.vy+=.08;
+    });
+    if(elapsed < 4200) requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  })();
+}
+
+async function upload(){
+  const pdfFile   = document.getElementById('pdf').files[0];
+  const excelFile = document.getElementById('excel').files[0];
+  const sn        = document.getElementById('sheet_name').value.trim();
+  const btn       = document.getElementById('mainBtn');
+
+  /* ── Validate all three fields ── */
+  if(!pdfFile || !excelFile || !sn){
+    setStatus('⚠️ Please fill in all three fields first.', 'error');
+    const c = document.getElementById('appCard');
+    c.style.animation = 'none'; void c.offsetWidth; c.style.animation = 'shake .4s ease';
+    return;
+  }
+
+  /* ── Lock UI ── */
+  btn.classList.add('loading'); btn.disabled = true;
+  document.getElementById('btnInner').innerHTML =
+    '<svg viewBox="0 0 24 24" style="animation:spinI .8s linear infinite;fill:none;stroke:white;stroke-width:2.5;stroke-linecap:round;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Processing\u2026';
+  setStatus('Uploading files…', '');
+
+  /* ── Build FormData exactly as backend expects ──
+       pdf        → PDF file
+       template   → Excel template file   ← key must be "template"
+       sheet_name → sheet name string
+  ── */
+  const fd = new FormData();
+  fd.append('pdf',        pdfFile);
+  fd.append('template',   excelFile);   // backend: request.files.get("template")
+  fd.append('sheet_name', sn);          // backend: request.form.get("sheet_name")
+
+  /* ── Fire fetch immediately AND run animation in parallel ── */
+  const fetchPromise = fetch('/convert', { method: 'POST', body: fd });
+  const animPromise  = animateSteps();
+
+  try {
+    /* Wait for BOTH – fetch result won't be consumed until animation finishes */
+    const [res] = await Promise.all([fetchPromise, animPromise]);
+
+    finishSteps();
+
+    if(!res.ok){
+      /* Backend returns plain-text error body with 400 status */
+      const errText = (await res.text()).trim();
+      throw new Error(errText || `Server error (${res.status})`);
+    }
+
+    /* ── Success: trigger file download ── */
+    const blob = await res.blob();
+    const url  = window.URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'college_filled_marks.xlsx';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { a.remove(); window.URL.revokeObjectURL(url); }, 1000);
+
+    launchConfetti();
+    const ov = document.getElementById('successOverlay');
+    ov.style.display = 'flex';
+    setTimeout(() => ov.classList.add('show'), 10);
+
+  } catch(err){
+    finishSteps();
+    /* Friendly error mapping for known backend messages */
+    let msg = err.message;
+    if(msg.toLowerCase().includes('sheet not found'))
+      msg = '❌ Sheet name not found in the Excel file. Check the sheet name and try again.';
+    else if(msg.toLowerCase().includes('missing'))
+      msg = '❌ Missing PDF or Excel file. Please upload both files.';
+    else if(msg === 'Failed to fetch')
+      msg = '❌ Cannot reach server. Make sure the backend is running on port 5000.';
+    else
+      msg = '❌ ' + msg;
+    setStatus(msg, 'error');
+    resetBtn();
+    document.getElementById('procSteps').style.display = 'none';
+    document.getElementById('progWrap').style.display  = 'none';
+  }
+}
+
+function resetBtn(){
+  const btn = document.getElementById('mainBtn');
+  btn.classList.remove('loading'); btn.disabled = false;
+  document.getElementById('btnInner').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Process &amp; Download';
+}
+
+function resetForm(){
+  const ov = document.getElementById('successOverlay');
+  ov.classList.remove('show'); ov.style.display='none';
+  ['pdf','excel'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sheet_name').value='';
+  [['pdfMain','Choose PDF'],['pdfHint','drag & drop or click'],
+   ['excelMain','Choose Excel'],['excelHint','drag & drop or click']]
+    .forEach(([id,txt])=>document.getElementById(id).textContent=txt);
+  ['pdfWrap','excelWrap'].forEach(id=>document.getElementById(id).classList.remove('has-file'));
+  document.getElementById('procSteps').style.display='none';
+  document.getElementById('progWrap').style.display='none';
+  document.getElementById('progFill').style.width='0%';
+  ['ps1','ps2','ps3'].forEach(id=>document.getElementById(id).className='p-step');
+  setStatus('',''); resetBtn(); updateSteps();
+}
+
+const _s = document.createElement('style');
+_s.textContent = '@keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}40%{transform:translateX(8px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}}@keyframes spinI{to{transform:rotate(360deg);}}';
+document.head.appendChild(_s);
+</script>
+</body>
+</html>
