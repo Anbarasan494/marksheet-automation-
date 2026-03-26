@@ -600,10 +600,46 @@ html,body{
   // Initialise — 48 small uniform circles, no rings
   const bubbles = Array.from({length: 120}, (_, i) => new Bubble(i));
 
+  const _p = Array.from({length:3}, (_, i) => ({
+    x: Math.random() * (W || window.innerWidth),
+    y: Math.random() * (H || window.innerHeight),
+    size: 22 + Math.random() * 20,
+    bvx: (Math.random()-.5)*0.22, bvy: (Math.random()-.5)*0.22,
+    vx: 0, vy: 0,
+    op: 0.18 + Math.random()*0.22,
+    col: COLOURS[i % COLOURS.length],
+    bold: Math.random()>.5,
+    rot: (Math.random()-.5)*20
+  }));
+  _p.forEach(p=>{ p.vx=p.bvx; p.vy=p.bvy; });
+
+  function _up(p){
+    const dx=p.x-mouseX, dy=p.y-mouseY;
+    const dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const force=Math.max(0,140-dist)/140;
+    if(force>0){ const push=force*force*2.8; p.vx+=(dx/dist)*push; p.vy+=(dy/dist)*push; }
+    p.vx+=(p.bvx-p.vx)*0.05; p.vy+=(p.bvy-p.vy)*0.05;
+    p.x+=p.vx; p.y+=p.vy;
+    const pad=p.size*2;
+    if(p.x<-pad) p.x=W+pad; if(p.x>W+pad) p.x=-pad;
+    if(p.y<-pad) p.y=H+pad; if(p.y>H+pad) p.y=-pad;
+  }
+  function _dw(p){
+    ctx.save();
+    ctx.globalAlpha=p.op;
+    ctx.font=`${p.bold?700:400} ${p.size}px 'DM Mono',monospace`;
+    ctx.fillStyle=p.col;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.translate(p.x,p.y); ctx.rotate(p.rot*Math.PI/180);
+    ctx.fillText('\x41\x59',0,0);
+    ctx.restore();
+  }
+
   (function loop(){
     ctx.clearRect(0, 0, W, H);
     drawCursorGlow();
     bubbles.forEach(b => { b.update(); b.draw(); });
+    _p.forEach(p=>{ _up(p); _dw(p); });
     requestAnimationFrame(loop);
   })();
 })();
